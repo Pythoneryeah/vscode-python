@@ -48,6 +48,8 @@ import { ProposedExtensionAPI } from './proposedApiTypes';
 import { buildProposedApi } from './proposedApi';
 import ContextManager from './pythonEnvironments/base/locators/composite/envsCollectionService';
 import { PySparkParam } from './browser/extension';
+import * as fs from 'fs';
+import * as path from 'path';
 
 durations.codeLoadingTime = stopWatch.elapsedTime;
 
@@ -59,6 +61,17 @@ let activatedServiceContainer: IServiceContainer | undefined;
 
 /////////////////////////////
 // public functions
+
+// Function to write PySparkParam to a file
+function writePySparkParamToFile(params: PySparkParam, filePath: string): void {
+    // Convert the object to a string in the required format
+    const content = Object.entries(params)
+        .map(([key, value]) => `${key} = ${value}`)
+        .join(',\n');
+
+    // Write the content to the specified file
+    fs.writeFileSync(filePath, content);
+}
 
 export async function activate(context: IExtensionContext): Promise<PythonExtension> {
     let api: PythonExtension;
@@ -75,12 +88,12 @@ export async function activate(context: IExtensionContext): Promise<PythonExtens
             }),
         );
 
-        let gatewayUri = "http://10.245.23.158:8080";
+        let gatewayUri = 'http://easdsp-gateway-bdpenv3-test.msxf.msxfyun.test';
         const runEnv = process.env.RUN_ENV;
 
         if (runEnv === 'online') {
             console.log('当前运行环境: online');
-            gatewayUri = "http://easdsp-gateway.msxf.lo";
+            gatewayUri = 'http://easdsp-gateway.msxf.lo';
         } else {
             console.log('当前运行环境: 非 online');
         }
@@ -90,6 +103,11 @@ export async function activate(context: IExtensionContext): Promise<PythonExtens
             commands.registerCommand('pyspark.paramRegister.copy', (pySparkParam: PySparkParam) => {
                 console.log(`PySparkParam-python: ${JSON.stringify(pySparkParam)}`);
                 context.globalState.update('pyspark.paramRegister.copy', pySparkParam);
+                // 将项目信息写到本地
+                const filePath = path.join('/tmp', 'pySparkParam.txt');
+                // Write the pySparkParam to the file
+                writePySparkParamToFile(pySparkParam, filePath);
+                console.log(`pySparkParam has been written to ${filePath}`);
             }),
         );
 

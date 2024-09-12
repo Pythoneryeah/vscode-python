@@ -230,7 +230,8 @@ export function sortedEnvs(envs: PythonEnvInfo[]): PythonEnvInfo[] {
     return envs.sort((env1, env2) => {
         const env1str = `${env1.kind}-${env1.executable.filename}-${getVersionString(env1.version)}`;
         const env2str = `${env2.kind}-${env2.executable.filename}-${getVersionString(env2.version)}`;
-        return env1str.localeCompare(env2str);
+        // return env1str.localeCompare(env2str);
+        return env2str.localeCompare(env1str);
     });
 }
 

@@ -106,7 +106,7 @@ async function fetchEnvironments(): Promise<PySparkEnvironmentMeta[]> {
             console.log('No PySparkParam found in global state.');
         }
         
-        const response = await fetch(`${ContextManager.getInstance().getContext().globalState.get<string>('gateway.addr')}/env/pyspark/list?proId=${proId}`, {
+        const response = await fetch(`${ContextManager.getInstance().getContext().globalState.get<string>('gateway.addr')}/api/v1/env/pyspark/list?proId=${proId}`, {
             method: 'GET',
             headers: {
                 Cookie: 'token=2345fc15-fe44-4e3b-afbc-24688c2f5f70;userId=idegw',

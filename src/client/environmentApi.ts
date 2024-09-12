@@ -235,8 +235,18 @@ export function buildEnvironmentApi(
         },
         get known(): Environment[] {
             sendApiTelemetry('known');
-            return discoveryApi
-                .getEnvs()
+            const envs = discoveryApi.getEnvs()
+            envs.sort((a, b) => {
+                // Move items with level 0 to the front
+                if (a.level === 0 && b.level !== 0) {
+                    return -1; // a should come before b
+                }
+                if (a.level !== 0 && b.level === 0) {
+                    return 1; // b should come before a
+                }
+                return 0; // keep original order if both are 0 or neither is 0
+            });
+            return envs
                 .filter((e) => filterUsingVSCodeContext(e))
                 .map((e) => convertEnvInfoAndGetReference(e));
         },
