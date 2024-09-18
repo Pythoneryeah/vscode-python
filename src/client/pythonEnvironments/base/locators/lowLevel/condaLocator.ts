@@ -10,10 +10,8 @@ import { FSWatchingLocator } from './fsWatchingLocator';
 import { pathExists } from 'fs-extra';
 import * as crypto from 'crypto';
 
-
 import { exec } from 'child_process';
-import ContextManager from '../composite/envsCollectionService';
-import { PySparkParam } from '../../../../browser/extension';
+import CacheMap from '../composite/envsReducer';
 
 function exportCondaEnv(name: string): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -36,16 +34,16 @@ function preprocessAndHashDependencies(value: string): string {
     const lines = value.split('\n');
 
     // 找到 `dependencies:` 的起始行
-    const dependenciesStartIndex = lines.findIndex(line => line.trim() === 'dependencies:');
+    const dependenciesStartIndex = lines.findIndex((line) => line.trim() === 'dependencies:');
 
     // 找到 `dependencies:` 之后的 `prefix:` 行，表示 dependencies 结束
-    const prefixStartIndex = lines.findIndex(line => line.trim().startsWith('prefix:'));
+    const prefixStartIndex = lines.findIndex((line) => line.trim().startsWith('prefix:'));
 
     // 提取 dependencies 部分的内容（跳过 `dependencies:` 行）
-    const dependencies = lines.slice(dependenciesStartIndex + 1, prefixStartIndex).map(line => line.trim());
+    const dependencies = lines.slice(dependenciesStartIndex + 1, prefixStartIndex).map((line) => line.trim());
 
     // 去除空行
-    const filteredDependencies = dependencies.filter(line => line !== '');
+    const filteredDependencies = dependencies.filter((line) => line !== '');
 
     // 对 dependencies 内容进行排序
     const sortedDependencies = filteredDependencies.sort();
@@ -64,7 +62,7 @@ async function compareDetails(storeDetail: string, detail: string | undefined): 
     try {
         const storeDetailHash = preprocessAndHashDependencies(storeDetail);
         const detailHash = preprocessAndHashDependencies(detail);
-    
+
         return storeDetailHash === detailHash;
     } catch (error) {
         traceError('Error comparing details:', error);
@@ -86,34 +84,38 @@ interface PySparkEnvironmentMeta {
 
 async function fetchEnvironments(): Promise<PySparkEnvironmentMeta[]> {
     try {
-        // 获取存储的 PySparkParam 对象
-        const pySparkParam = ContextManager.getInstance().getContext().globalState.get<PySparkParam>('pyspark.paramRegister.copy');
+        const projectId = CacheMap.getInstance().get('projectId');
+        const projectCode = CacheMap.getInstance().get('projectCode');
 
-        let proId = "0";
+        let proId = '0';
         // 检查是否成功获取到数据
-        if (pySparkParam) {
+        // if (pySparkParam) {
+        if (projectId && projectCode) {
             // 通过属性名获取 projectId 和 projectCode
-            const { projectId } = pySparkParam;
-            const { projectCode } = pySparkParam;
+            // const { projectId } = pySparkParam;
+            // const { projectCode } = pySparkParam;
 
-            console.log(`Project ID: ${projectId}`);
-            console.log(`Project Code: ${projectCode}`);
-
-            if (projectId) {
-                proId = projectId;
-            }
+            console.log(`fetchEnvironments Project ID: ${projectId}`);
+            console.log(`fetchEnvironments Project Code: ${projectCode}`);
+            proId = projectId;
+            // if (projectId) {
+            //     proId = projectId;
+            // }
         } else {
             console.log('No PySparkParam found in global state.');
         }
-        
-        const response = await fetch(`${ContextManager.getInstance().getContext().globalState.get<string>('gateway.addr')}/api/v1/env/pyspark/list?proId=${proId}`, {
-            method: 'GET',
-            headers: {
-                Cookie: 'token=2345fc15-fe44-4e3b-afbc-24688c2f5f70;userId=idegw',
-                'content-type': 'application/json',
-                operator: 'hu.tan@msxf.com',
+
+        const response = await fetch(
+            `${CacheMap.getInstance().get('gatewayUri')}/api/v1/env/pyspark/list?proId=${proId}`,
+            {
+                method: 'GET',
+                headers: {
+                    Cookie: 'token=2345fc15-fe44-4e3b-afbc-24688c2f5f70;userId=idegw',
+                    'content-type': 'application/json',
+                    operator: 'hu.tan@msxf.com',
+                },
             },
-        });
+        );
 
         if (!response.ok) {
             throw new Error('Network response was not ok');
@@ -123,7 +125,7 @@ async function fetchEnvironments(): Promise<PySparkEnvironmentMeta[]> {
         return environments;
     } catch (error) {
         console.error('Error fetching environments:', error);
-        traceError(`Error fetching environments: ${error}`)
+        traceError(`Error fetching environments: ${error}`);
         return []; // 返回空数组作为错误处理
     }
 }
@@ -162,21 +164,6 @@ export class CondaEnvironmentLocator extends FSWatchingLocator {
 
     // eslint-disable-next-line class-methods-use-this
     public async *doIterEnvs(): IPythonEnvsIterator<BasicEnvInfo> {
-        
-        // // 测试用：获取存储的 PySparkParam 对象
-        // const pySparkParam = ContextManager.getInstance().getContext().globalState.get<PySparkParam>('pyspark.paramRegister.copy');
-
-        // // 检查是否成功获取到数据
-        // if (pySparkParam) {
-        //     // 通过属性名获取 projectId 和 projectCode
-        //     const { projectId } = pySparkParam;
-        //     const { projectCode } = pySparkParam;
-
-        //     console.log(`Project ID: ${projectId}`);
-        //     console.log(`Project Code: ${projectCode}`);
-        // } else {
-        //     console.log('No PySparkParam found in global state.');
-        // }
 
         const conda = await Conda.getConda();
         if (conda === undefined) {
@@ -240,7 +227,7 @@ export class CondaEnvironmentLocator extends FSWatchingLocator {
                         name: `${environment.name}`, // 动态生成 name
                         status: 0,
                         detail: environment.detail,
-                        level: environment.level
+                        level: environment.level,
                     };
 
                     // 创建目录，本地目录存在则表示该环境也存在，不做拉取
@@ -253,11 +240,8 @@ export class CondaEnvironmentLocator extends FSWatchingLocator {
                                 .then(async (output) => {
                                     traceInfo('Exported environment:');
                                     traceInfo(output);
-                                    isSync = await compareDetails(
-                                        environment.detail,
-                                        output,
-                                    );
-                                    traceError(`aaaaa: ${isSync}`)
+                                    isSync = await compareDetails(environment.detail, output);
+                                    traceError(`aaaaa: ${isSync}`);
                                 })
                                 .catch((error) => {
                                     console.error(error);
@@ -279,7 +263,7 @@ export class CondaEnvironmentLocator extends FSWatchingLocator {
                     //     (env) => (env.prefix === expectedBasicEnv.prefix || env.name === expectedBasicEnv.name) && env.status === expectedBasicEnv.status,
                     // );
 
-                    const exists = checkAndReplaceEnv(envs, expectedBasicEnv)
+                    const exists = checkAndReplaceEnv(envs, expectedBasicEnv);
 
                     // 如果不存在，则将 expectedBasicEnv 添加到 envs 数组中
                     if (!exists) {
@@ -293,7 +277,7 @@ export class CondaEnvironmentLocator extends FSWatchingLocator {
             }
         } else {
             console.log('envs_dirs 不存在或为空');
-            traceError(`envs_dirs 不存在或为空`)
+            traceError(`envs_dirs 不存在或为空`);
         }
 
         // 继续处理本地 conda 环境
@@ -302,9 +286,9 @@ export class CondaEnvironmentLocator extends FSWatchingLocator {
                 traceVerbose(`Looking into conda env for executable: ${JSON.stringify(env)}`);
                 const executablePath = await conda.getInterpreterPathForEnvironment(env);
                 traceVerbose(`Found conda executable: ${executablePath}`);
-                yield { 
-                    kind: PythonEnvKind.Conda, 
-                    executablePath, 
+                yield {
+                    kind: PythonEnvKind.Conda,
+                    executablePath,
                     envPath: env.prefix,
                     status: env.status ?? 1,
                     detail: env.detail,

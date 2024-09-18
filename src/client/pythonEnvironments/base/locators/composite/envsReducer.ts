@@ -152,3 +152,47 @@ function sortEnvInfoByPriority(...envs: BasicEnvInfo[]): BasicEnvInfo[] {
         (a: BasicEnvInfo, b: BasicEnvInfo) => envKindByPriority.indexOf(a.kind) - envKindByPriority.indexOf(b.kind),
     );
 }
+
+class CacheMap {
+    private static instance: CacheMap;
+    private cache: Map<string, any>;
+
+    // 私有构造函数，保证不能直接实例化
+    private constructor() {
+        this.cache = new Map();
+    }
+
+    // 获取单例实例
+    public static getInstance(): CacheMap {
+        if (!CacheMap.instance) {
+            CacheMap.instance = new CacheMap();
+        }
+        return CacheMap.instance;
+    }
+
+    // 设置值
+    public set(key: string, value: any): void {
+        this.cache.set(key, value);
+    }
+
+    // 获取值
+    public get(key: string): any | undefined {
+        return this.cache.get(key);
+    }
+
+    // 检查缓存中是否有该 key
+    public has(key: string): boolean {
+        return this.cache.has(key);
+    }
+
+    // 删除指定 key
+    public delete(key: string): boolean {
+        return this.cache.delete(key);
+    }
+
+    // 清空缓存
+    public clear(): void {
+        this.cache.clear();
+    }
+}
+export default CacheMap;

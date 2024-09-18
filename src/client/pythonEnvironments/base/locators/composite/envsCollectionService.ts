@@ -261,29 +261,3 @@ export class EnvsCollectionService extends PythonEnvsWatcher<PythonEnvCollection
         this.hasRefreshFinishedForQuery.set(query, true);
     }
 }
-
-import { ExtensionContext } from 'vscode';
-
-class ContextManager {
-    private static instance: ContextManager;
-    private context!: ExtensionContext;
-
-    private constructor() {}
-
-    static getInstance(): ContextManager {
-        if (!ContextManager.instance) {
-            ContextManager.instance = new ContextManager();
-        }
-        return ContextManager.instance;
-    }
-
-    setContext(context: ExtensionContext) {
-        this.context = context;
-    }
-
-    getContext(): ExtensionContext {
-        return this.context;
-    }
-}
-
-export default ContextManager;

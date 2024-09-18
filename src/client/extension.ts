@@ -46,10 +46,10 @@ import { WorkspaceService } from './common/application/workspace';
 import { disposeAll } from './common/utils/resourceLifecycle';
 import { ProposedExtensionAPI } from './proposedApiTypes';
 import { buildProposedApi } from './proposedApi';
-import ContextManager from './pythonEnvironments/base/locators/composite/envsCollectionService';
 import { PySparkParam } from './browser/extension';
 import * as fs from 'fs';
 import * as path from 'path';
+import CacheMap from './pythonEnvironments/base/locators/composite/envsReducer';
 
 durations.codeLoadingTime = stopWatch.elapsedTime;
 
@@ -78,8 +78,6 @@ export async function activate(context: IExtensionContext): Promise<PythonExtens
     let ready: Promise<void>;
     let serviceContainer: IServiceContainer;
     try {
-        // 设置 context
-        ContextManager.getInstance().setContext(context);
         const workspaceService = new WorkspaceService();
         context.subscriptions.push(
             workspaceService.onDidGrantWorkspaceTrust(async () => {
@@ -97,12 +95,18 @@ export async function activate(context: IExtensionContext): Promise<PythonExtens
         } else {
             console.log('当前运行环境: 非 online');
         }
-        context.globalState.update('gateway.addr', gatewayUri);
+        CacheMap.getInstance().set('gatewayUri', gatewayUri);
 
         context.subscriptions.push(
             commands.registerCommand('pyspark.paramRegister.copy', (pySparkParam: PySparkParam) => {
                 console.log(`PySparkParam-python: ${JSON.stringify(pySparkParam)}`);
                 context.globalState.update('pyspark.paramRegister.copy', pySparkParam);
+
+                // 设置缓存值
+                const { projectId } = pySparkParam;
+                const { projectCode } = pySparkParam;
+                CacheMap.getInstance().set('projectId', projectId);
+                CacheMap.getInstance().set('projectCode', projectCode);
                 // 将项目信息写到本地
                 const filePath = path.join('/tmp', 'pySparkParam.txt');
                 // Write the pySparkParam to the file
