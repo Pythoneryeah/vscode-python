@@ -22,7 +22,7 @@ env:
 jobs:
   setup:
     name: Set up
-    if: github.repository == 'microsoft/vscode-python'
+    if: github.repository == 'Pythoneryeah/vscode-python'
     runs-on: ubuntu-latest
     defaults:
       run:
